@@ -11,14 +11,12 @@ import anthropic
 from config import (
     ANTHROPIC_API_KEY,
     USER_IDENTITY,
-    CTA_LEAD_MAGNET,
     STEP3_REWRITE_PROMPT,
     STEP4_ANALYSIS_PROMPT,
     STEP4_REWRITE_PROMPT,
     STEP5_THETA_ANALYSIS_PROMPT,
     STEP5_THETA_REWRITE_PROMPT,
     STEP6_SOURCE_PROMPT,
-    build_cta_instruction,
 )
 
 MODEL = "claude-haiku-4-5"
@@ -62,10 +60,7 @@ def _two_turn(
 
 def step3_rewrite(initial_draft: str) -> str:
     """步驟 3：改寫初稿為正式臉書貼文格式。"""
-    prompt = STEP3_REWRITE_PROMPT.format(
-        draft=initial_draft,
-        cta_instruction=build_cta_instruction(CTA_LEAD_MAGNET),
-    )
+    prompt = STEP3_REWRITE_PROMPT.format(draft=initial_draft)
     return _call(
         [{"role": "user", "content": prompt}],
         label="步驟 3｜改寫",
