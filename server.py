@@ -49,6 +49,27 @@ _state = {
 _lock = threading.Lock()
 
 
+def _summarize_videos(videos: list) -> list:
+    """用 Claude Haiku 為每支影片生成中文摘要。"""
+    import anthropic
+    from config import ANTHROPIC_API_KEY
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    result = []
+    for v in videos:
+        try:
+            prompt = f"以下是一支 YouTube 影片的標題與頻道，請用繁體中文寫 1-2 句話說明這支影片大概在講什麼主題，語氣簡潔。\n\n標題：{v['title']}\n頻道：{v['channel']}\n\n直接輸出摘要，不需要其他說明。"
+            resp = client.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=150,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            summary = resp.content[0].text.strip()
+        except Exception:
+            summary = ""
+        result.append({**v, "summary": summary})
+    return result
+
+
 def _do_search():
     """在背景搜尋影片候選清單。"""
     with _lock:
@@ -59,6 +80,12 @@ def _do_search():
     try:
         from youtube_finder import find_videos
         videos = find_videos()
+
+        with _lock:
+            _state["message"] = "生成中文摘要中…"
+
+        videos = _summarize_videos(videos)
+
         with _lock:
             _state["status"] = "searched"
             _state["message"] = f"找到 {len(videos)} 支影片，請選擇要生成的題目"
