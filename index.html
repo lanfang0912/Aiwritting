@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 內容生產線</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Serif TC', serif;
+    background: #f7f4ef;
+    color: #2c2c2c;
+    min-height: 100vh;
+    padding: 40px 16px;
+  }
+  .container { max-width: 640px; margin: 0 auto; }
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    font-size: 12px;
+    color: #888;
+    letter-spacing: .5px;
+    margin-bottom: 32px;
+    line-height: 1.7;
+  }
+  .btn-row { display: flex; gap: 12px; align-items: center; margin-bottom: 28px; flex-wrap: wrap; }
+  button {
+    font-family: 'Noto Serif TC', serif;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all .2s;
+  }
+  .btn-run {
+    padding: 13px 28px;
+    background: #2c2c2c;
+    color: #f7f4ef;
+    border: none;
+    font-size: 13px;
+    letter-spacing: 2px;
+  }
+  .btn-run:disabled { background: #aaa; cursor: not-allowed; }
+  .btn-refresh {
+    padding: 11px 18px;
+    background: transparent;
+    border: 1px solid #ddd;
+    font-size: 12px;
+    color: #888;
+  }
+  .btn-refresh:hover { color: #2c2c2c; border-color: #aaa; }
+  #status-badge { font-size: 12px; color: #888; }
+  .card {
+    background: #eeebe5;
+    border-radius: 4px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    line-height: 1.8;
+    display: none;
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .card-title { font-weight: 600; letter-spacing: .5px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+  #status-msg { color: #666; }
+  #status-time { font-size: 11px; color: #aaa; margin-top: 4px; }
+  .drafts-wrap { display: none; }
+  .drafts-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+  .draft-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid #ddd;
+  }
+  .draft-num { font-size: 13px; }
+  .draft-name { font-size: 11px; color: #888; flex: 1; }
+  .btn-view {
+    padding: 5px 12px;
+    border: 1px solid #c4832a;
+    color: #c4832a;
+    background: transparent;
+    font-size: 11px;
+  }
+  .preview-wrap { display: none; margin-top: 24px; }
+  .preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .preview-title { font-size: 13px; font-weight: 600; }
+  .btn-close { background: none; border: none; font-size: 18px; color: #888; }
+  pre {
+    background: #f7f4ef;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 18px;
+    font-family: 'Noto Serif TC', serif;
+    font-size: 13px;
+    line-height: 1.9;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 520px;
+    overflow-y: auto;
+  }
+  .btn-copy {
+    margin-top: 10px;
+    padding: 9px 18px;
+    background: #c4832a;
+    color: white;
+    border: none;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2c2c2c;
+    color: #f7f4ef;
+    padding: 10px 22px;
+    border-radius: 4px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; }
+  .token-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .token-input {
+    flex: 1;
+    padding: 9px 12px;
+    border: 1px solid #ddd;
+    border-radius: 2px;
+    font-size: 12px;
+    font-family: monospace;
+    background: #fff;
+    color: #2c2c2c;
+  }
+  .token-label { font-size: 11px; color: #888; letter-spacing: .5px; white-space: nowrap; }
+</style>
+<link href="<https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500&family=DM+Serif+Display&display=swap>" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+  <h1>AI 內容生產線</h1>
+  <p class="subtitle">搜尋 YouTube 外文影片 → 抓字幕 → Claude 生成臉書貼文草稿（6 步驟管線）</p>
+  <div class="token-row">
+    <span class="token-label">RUN_TOKEN</span>
+    <input class="token-input" id="token-input" type="password" placeholder="填入 RUN_TOKEN（如有設定）">
+  </div>
+  <div class="btn-row">
+    <button class="btn-run" id="ai-run-btn" onclick="aiRun()">▶ 立即執行</button>
+    <button class="btn-refresh" onclick="aiRefreshStatus()">↻ 更新狀態</button>
+    <span id="status-badge">—</span>
+  </div>
+  <div class="card" id="status-card">
+    <div class="card-header">
+      <div class="card-title">執行狀態</div>
+      <div class="dot" id="status-dot"></div>
+    </div>
+    <div id="status-msg"></div>
+    <div id="status-time"></div>
+  </div>
+  <div class="drafts-wrap" id="drafts-wrap">
+    <div class="drafts-title">今日草稿</div>
+    <div id="drafts-list"></div>
+  </div>
+  <div class="preview-wrap" id="preview-wrap">
+    <div class="preview-header">
+      <div class="preview-title" id="preview-title"></div>
+      <button class="btn-close" onclick="document.getElementById('preview-wrap').style.display='none'">✕</button>
+    </div>
+    <pre id="preview-content"></pre>
+    <button class="btn-copy" onclick="copyDraft()">複製全文</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+  const API = '<https://aiwritting-production-00ee.up.railway.app>';
+  function getToken() { return document.getElementById('token-input').value.trim(); }
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+  async function aiRun() {
+    const btn = document.getElementById('ai-run-btn');
+    btn.disabled = true; btn.textContent = '執行中…';
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = getToken();
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch(API + '/run', { method: 'POST', headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.status);
+      showToast('已開始執行，約需 2-5 分鐘');
+      setTimeout(aiRefreshStatus, 3000);
+      aiPollStatus();
+    } catch (e) {
+      showToast('執行失敗：' + e.message);
+      btn.disabled = false; btn.textContent = '▶ 立即執行';
+    }
+  }
+  let _pollTimer = null;
+  function aiPollStatus() {
+    if (_pollTimer) clearInterval(_pollTimer);
+    _pollTimer = setInterval(async () => {
+      const st = await aiRefreshStatus();
+      if (st === 'done' || st === 'error') {
+        clearInterval(_pollTimer);
+        const btn = document.getElementById('ai-run-btn');
+        btn.disabled = false; btn.textContent = '▶ 立即執行';
+      }
+    }, 5000);
+  }
+  async function aiRefreshStatus() {
+    try {
+      const res = await fetch(API + '/status');
+      const data = await res.json();
+      updateStatusUI(data); return data.status;
+    } catch (e) { document.getElementById('status-badge').textContent = '無法連線'; }
+  }
+  function updateStatusUI(data) {
+    const card = document.getElementById('status-card');
+    const msg = document.getElementById('status-msg');
+    const dot = document.getElementById('status-dot');
+    const time = document.getElementById('status-time');
+    const badge = document.getElementById('status-badge');
+    card.style.display = 'block';
+    msg.textContent = data.message || '—';
+    const colors = { idle: '#ccc', running: '#c4832a', done: '#6a9e6a', error: '#c0392b' };
+    const labels = { idle: '待機', running: '執行中', done: '完成', error: '錯誤' };
+    dot.style.background = colors[data.status] || '#ccc';
+    badge.textContent = labels[data.status] || data.status;
+    badge.style.color = colors[data.status] || '#ccc';
+    const ts = data.finished_at || data.started_at;
+    time.textContent = ts ? '時間：' + ts.replace('T', ' ').replace('Z', '') : '';
+    if (data.drafts && data.drafts.length) {
+      document.getElementById('drafts-wrap').style.display = 'block';
+      document.getElementById('drafts-list').innerHTML = data.drafts.map((f, i) =>
+        `<div class="draft-item"><div class="draft-num">草稿 ${i+1}</div><div class="draft-name">${f}</div><button class="btn-view" onclick="viewDraft('${f}')">檢視</button></div>`
+      ).join('');
+    }
+  }
+  async function viewDraft(filename) {
+    try {
+      const headers = {};
+      const token = getToken();
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch(API + '/results/' + filename, { headers });
+      if (!res.ok) throw new Error(res.status);
+      const text = await res.text();
+      document.getElementById('preview-title').textContent = filename;
+      document.getElementById('preview-content').textContent = text;
+      document.getElementById('preview-wrap').style.display = 'block';
+      document.getElementById('preview-wrap').scrollIntoView({ behavior: 'smooth' });
+    } catch (e) { showToast('無法載入草稿：' + e.message); }
+  }
+  function copyDraft() {
+    navigator.clipboard.writeText(document.getElementById('preview-content').textContent)
+      .then(() => showToast('已複製到剪貼簿'));
+  }
+  aiRefreshStatus();
+</script>
+</body>
+</html>
