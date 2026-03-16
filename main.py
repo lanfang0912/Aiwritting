@@ -16,7 +16,7 @@
 from datetime import date
 from pathlib import Path
 
-from config import YOUTUBE_API_KEY, ANTHROPIC_API_KEY, VIDEOS_PER_RUN, USER_IDENTITY
+from config import ANTHROPIC_API_KEY, VIDEOS_PER_RUN, USER_IDENTITY
 from youtube_finder import find_videos
 from transcript_fetcher import fetch_transcript
 from report_generator import generate_facebook_post
@@ -28,13 +28,8 @@ THIN = "─" * 70
 
 
 def check_env() -> None:
-    missing = []
-    if not YOUTUBE_API_KEY:
-        missing.append("YOUTUBE_API_KEY")
     if not ANTHROPIC_API_KEY:
-        missing.append("ANTHROPIC_API_KEY")
-    if missing:
-        raise RuntimeError(f"缺少環境變數：{', '.join(missing)}，請在 Railway Variables 填入 API Keys。")
+        raise RuntimeError("缺少環境變數：ANTHROPIC_API_KEY，請在 Railway Variables 填入。")
 
 
 def run() -> None:
