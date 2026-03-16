@@ -6,6 +6,16 @@ load_dotenv()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
+
+def build_cta_instruction(lead_magnet: str) -> str:
+    """根據 CTA_LEAD_MAGNET 設定，產生對應的 CTA 指示文字。"""
+    if lead_magnet.strip():
+        return (
+            f"這段 CTA 要自然帶入名單收集：告訴讀者可以留言或私訊領取「{lead_magnet}」，"
+            "並鼓勵覺得有共鳴的人轉發給身邊有需要的朋友。"
+        )
+    return "邀請讀者在留言區分享自身經驗或想法，並鼓勵轉發給身邊有需要的人。"
+
 # Search settings
 VIDEOS_PER_RUN = 3
 MIN_VIEW_COUNT = 100_000
@@ -40,6 +50,10 @@ PREFERRED_LANGUAGES = ["en", "ja", "ko", "es", "fr", "de"]
 # ── 使用者設定 ──────────────────────────────────────────────────────────────
 USER_IDENTITY = "希塔療癒導師"
 
+# CTA 名單收集設定（留空則只做留言/分享 CTA，不主動提供資源）
+# 範例：「免費信念清單 PDF」、「免費希塔療癒體驗課」、「私訊我關鍵字『療癒』」
+CTA_LEAD_MAGNET = ""
+
 # ── 步驟 1-2：初稿 ──────────────────────────────────────────────────────────
 FACEBOOK_POST_PROMPT = """根據以下影片的字幕內容，請完成以下任務：
 
@@ -73,7 +87,7 @@ STEP3_REWRITE_PROMPT = """以下是一篇根據 YouTube 影片字幕整理的初
 
 內文標題在文字前置入：▋
 
-(8) 文末 CTA：在文章最後加上一段邀請留言與分享的文字。語氣自然、不強迫，像是朋友說話。引導讀者留言分享自身經驗或想法，並鼓勵轉發給有需要的人。不要用命令句，不要用「記得」「趕快」「立刻」等催促語。
+(8) 文末 CTA：在文章最後加上一段互動文字。{cta_instruction}語氣自然、像朋友說話，不強迫。不要用「記得」「趕快」「立刻」等催促語，不要用命令句。
 
 初稿如下：
 {draft}
