@@ -13,7 +13,6 @@
 執行：
     python main.py
 """
-import sys
 from datetime import date
 from pathlib import Path
 
@@ -35,9 +34,7 @@ def check_env() -> None:
     if not ANTHROPIC_API_KEY:
         missing.append("ANTHROPIC_API_KEY")
     if missing:
-        print(f"[ERROR] 缺少環境變數：{', '.join(missing)}")
-        print("        請複製 .env.example 為 .env 並填入 API Keys。")
-        sys.exit(1)
+        raise RuntimeError(f"缺少環境變數：{', '.join(missing)}，請在 Railway Variables 填入 API Keys。")
 
 
 def run() -> None:
@@ -54,15 +51,10 @@ def run() -> None:
     print(DIVIDER + "\n")
 
     print("▶ 搜尋 YouTube 影片中...")
-    try:
-        videos = find_videos()
-    except Exception as e:
-        print(f"[ERROR] YouTube 搜尋失敗：{e}")
-        sys.exit(1)
+    videos = find_videos()
 
     if not videos:
-        print("[WARN] 未找到符合條件的影片，請稍後再試。")
-        sys.exit(0)
+        raise RuntimeError("未找到符合條件的影片，請稍後再試。")
 
     print(f"  找到 {len(videos)} 支符合條件的影片\n")
 

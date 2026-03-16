@@ -104,5 +104,5 @@ def _format_video(video: dict) -> dict:
         "channel": snippet["channelTitle"],
         "published_at": snippet["publishedAt"],
         "view_count": int(stats.get("viewCount", 0)),
-        "url": f"<https://www.youtube.com/watch?v={vid_id}>",
+        "url": f"https://www.youtube.com/watch?v={vid_id}",
     }
