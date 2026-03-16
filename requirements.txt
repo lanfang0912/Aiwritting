@@ -1,5 +1,5 @@
 google-api-python-client==2.118.0
-youtube-transcript-api
+yt-dlp
 anthropic==0.40.0
 python-dotenv==1.0.1
 flask==3.1.0
