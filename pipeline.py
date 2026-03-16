@@ -19,7 +19,7 @@ from config import (
     STEP6_SOURCE_PROMPT,
 )
 
-MODEL = "claude-opus-4-6"
+MODEL = "claude-haiku-4-5"
 
 
 def _call(messages: list[dict], label: str = "") -> str:
