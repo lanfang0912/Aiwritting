@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+draft_*.txt
+run.log
