@@ -39,20 +39,39 @@ PORT = int(os.getenv("PORT", 8080))
 
 # 全域狀態
 _state = {
-    "status": "idle",   # idle | running | done | error
+    "status": "idle",   # idle | searching | searched | running | done | error
     "started_at": None,
     "finished_at": None,
     "message": "",
     "drafts": [],
+    "candidates": [],   # [{id, title, channel, url, view_count, published_at}]
 }
 _lock = threading.Lock()
 
 
-def _run_pipeline():
-    """在背景執行主程式。"""
-    import sys
-    from io import StringIO
+def _do_search():
+    """在背景搜尋影片候選清單。"""
+    with _lock:
+        _state["status"] = "searching"
+        _state["message"] = "搜尋影片中…"
+        _state["candidates"] = []
 
+    try:
+        from youtube_finder import find_videos
+        videos = find_videos()
+        with _lock:
+            _state["status"] = "searched"
+            _state["message"] = f"找到 {len(videos)} 支影片，請選擇要生成的題目"
+            _state["candidates"] = videos
+    except Exception as e:
+        with _lock:
+            _state["status"] = "error"
+            _state["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            _state["message"] = f"搜尋失敗：{e}"
+
+
+def _run_pipeline(video_ids: list):
+    """在背景執行主程式，處理指定的影片 ID 清單。"""
     with _lock:
         _state["status"] = "running"
         _state["started_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -61,8 +80,10 @@ def _run_pipeline():
         _state["drafts"] = []
 
     try:
-        from main import run as main_run
-        main_run()
+        from main import run_selected
+        candidates = _state.get("candidates", [])
+        selected = [v for v in candidates if v["id"] in video_ids] if video_ids else candidates
+        run_selected(selected)
 
         today = date.today().isoformat()
         drafts = sorted(Path(".").glob(f"draft_{today}_*.txt"), key=lambda p: p.name)
@@ -88,6 +109,18 @@ def _check_auth():
     return auth == f"Bearer {RUN_TOKEN}"
 
 
+@app.route("/search", methods=["POST", "OPTIONS"])
+def search_videos():
+    if not _check_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+    with _lock:
+        if _state["status"] in ("searching", "running"):
+            return jsonify({"error": "已在執行中，請稍後"}), 409
+    t = threading.Thread(target=_do_search, daemon=True)
+    t.start()
+    return jsonify({"ok": True, "message": "搜尋中…"})
+
+
 @app.route("/run", methods=["POST", "OPTIONS"])
 def run_pipeline():
     if not _check_auth():
@@ -97,7 +130,10 @@ def run_pipeline():
         if _state["status"] == "running":
             return jsonify({"error": "已在執行中，請稍後"}), 409
 
-    t = threading.Thread(target=_run_pipeline, daemon=True)
+    data = request.get_json(silent=True) or {}
+    video_ids = data.get("video_ids", [])
+
+    t = threading.Thread(target=_run_pipeline, args=(video_ids,), daemon=True)
     t.start()
     return jsonify({"ok": True, "message": "已開始執行"})
 
