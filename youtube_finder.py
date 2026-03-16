@@ -1,108 +1,105 @@
-"""YouTube video finder using YouTube Data API v3."""
+"""YouTube video finder using yt-dlp (no API key required)."""
+import json
 import random
+import subprocess
 from datetime import datetime, timedelta, timezone
 
-from googleapiclient.discovery import build
-
-from config import YOUTUBE_API_KEY, SEARCH_QUERIES, MIN_VIEW_COUNT, MAX_AGE_DAYS, VIDEOS_PER_RUN
+from config import SEARCH_QUERIES, MIN_VIEW_COUNT, MAX_AGE_DAYS, VIDEOS_PER_RUN
 
 
-def get_youtube_client():
-    return build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+def _search_one_query(query: str, max_results: int = 20) -> list[dict]:
+    """Search YouTube with yt-dlp and return raw info list."""
+    try:
+        result = subprocess.run(
+            [
+                "yt-dlp",
+                f"ytsearch{max_results}:{query}",
+                "--dump-json",
+                "--skip-download",
+                "--no-playlist",
+                "--quiet",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return []
+
+    videos = []
+    for line in result.stdout.strip().splitlines():
+        if not line:
+            continue
+        try:
+            videos.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return videos
 
 
-def get_published_after() -> str:
-    """Return ISO 8601 date string for one year ago."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS)
-    return cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def search_videos(youtube, query: str, max_results: int = 20) -> list[dict]:
-    """Search YouTube for videos matching query with CC captions."""
-    request = youtube.search().list(
-        part="snippet",
-        q=query,
-        type="video",
-        videoCaption="closedCaption",
-        order="viewCount",
-        publishedAfter=get_published_after(),
-        maxResults=max_results,
-        relevanceLanguage="en",
-    )
-    response = request.execute()
-    return response.get("items", [])
-
-
-def get_video_details(youtube, video_ids: list[str]) -> list[dict]:
-    """Fetch view count and duration details for a list of video IDs."""
-    request = youtube.videos().list(
-        part="statistics,contentDetails,snippet",
-        id=",".join(video_ids),
-    )
-    response = request.execute()
-    return response.get("items", [])
-
-
-def filter_by_views(videos: list[dict], min_views: int = MIN_VIEW_COUNT) -> list[dict]:
-    """Keep only videos exceeding the minimum view count."""
-    return [
-        v for v in videos
-        if int(v["statistics"].get("viewCount", 0)) >= min_views
-    ]
+def _is_recent(video: dict) -> bool:
+    """Return True if the video was published within MAX_AGE_DAYS."""
+    upload_date = video.get("upload_date", "")  # YYYYMMDD
+    if not upload_date or len(upload_date) != 8:
+        return True  # unknown date, keep it
+    try:
+        pub = datetime.strptime(upload_date, "%Y%m%d").replace(tzinfo=timezone.utc)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS)
+        return pub >= cutoff
+    except ValueError:
+        return True
 
 
 def find_videos() -> list[dict]:
     """
-    Main entry point: search multiple queries and return up to VIDEOS_PER_RUN
-    unique videos with CC captions and view count >= MIN_VIEW_COUNT.
+    Search multiple queries via yt-dlp and return up to VIDEOS_PER_RUN
+    unique videos with view count >= MIN_VIEW_COUNT published within MAX_AGE_DAYS.
     """
-    youtube = get_youtube_client()
-    seen_ids: set[str] = set()
-    candidates: list[dict] = []
-
     queries = SEARCH_QUERIES.copy()
     random.shuffle(queries)
 
+    seen_ids: set[str] = set()
+    candidates: list[dict] = []
+
     for query in queries:
-        if len(candidates) >= VIDEOS_PER_RUN * 5:
+        if len(candidates) >= VIDEOS_PER_RUN * 3:
             break
 
-        search_results = search_videos(youtube, query)
-        video_ids = [
-            item["id"]["videoId"]
-            for item in search_results
-            if item["id"]["videoId"] not in seen_ids
-        ]
-        seen_ids.update(video_ids)
+        print(f"  搜尋：{query}")
+        raw = _search_one_query(query)
 
-        if not video_ids:
-            continue
+        for v in raw:
+            vid_id = v.get("id") or v.get("webpage_url_basename")
+            if not vid_id or vid_id in seen_ids:
+                continue
+            seen_ids.add(vid_id)
 
-        details = get_video_details(youtube, video_ids)
-        qualified = filter_by_views(details)
-        candidates.extend(qualified)
+            view_count = v.get("view_count") or 0
+            if view_count < MIN_VIEW_COUNT:
+                continue
+            if not _is_recent(v):
+                continue
 
-    unique: dict[str, dict] = {}
-    for v in candidates:
-        unique[v["id"]] = v
+            candidates.append(v)
 
-    selected = list(unique.values())
-    random.shuffle(selected)
-    selected = selected[:VIDEOS_PER_RUN]
-
+    random.shuffle(candidates)
+    selected = candidates[:VIDEOS_PER_RUN]
     return [_format_video(v) for v in selected]
 
 
-def _format_video(video: dict) -> dict:
-    """Extract the fields we need into a clean dict."""
-    snippet = video["snippet"]
-    stats = video["statistics"]
-    vid_id = video["id"]
+def _format_video(v: dict) -> dict:
+    """Normalise yt-dlp output to the shape the rest of the code expects."""
+    vid_id = v.get("id") or v.get("webpage_url_basename", "")
+    upload_date = v.get("upload_date", "")
+    if len(upload_date) == 8:
+        published_at = f"{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:]}T00:00:00Z"
+    else:
+        published_at = ""
     return {
         "id": vid_id,
-        "title": snippet["title"],
-        "channel": snippet["channelTitle"],
-        "published_at": snippet["publishedAt"],
-        "view_count": int(stats.get("viewCount", 0)),
+        "title": v.get("title", ""),
+        "channel": v.get("uploader") or v.get("channel", ""),
+        "published_at": published_at,
+        "view_count": v.get("view_count") or 0,
         "url": f"https://www.youtube.com/watch?v={vid_id}",
     }
