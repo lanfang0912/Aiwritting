@@ -30,7 +30,6 @@ def _call(messages: list[dict], label: str = "") -> str:
     with client.messages.stream(
         model=MODEL,
         max_tokens=4096,
-        thinking={"type": "adaptive"},
         messages=messages,
     ) as stream:
         final = stream.get_final_message()

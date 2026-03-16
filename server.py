@@ -11,7 +11,7 @@ import threading
 import time
 from datetime import date
 from pathlib import Path
-from flask import Flask, jsonify, request, make_response
+from flask import Flask, jsonify, request, make_response, send_from_directory
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -119,6 +119,11 @@ def get_result(filename):
 
 
 @app.route("/", methods=["GET"])
+def index():
+    return send_from_directory(".", "index.html")
+
+
+@app.route("/health", methods=["GET"])
 def health():
     return jsonify({"ok": True, "service": "Aiwritting"})
 

@@ -43,7 +43,7 @@
   .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #2c2c2c; color: #f7f4ef; padding: 10px 22px; border-radius: 4px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 999; }
   .toast.show { opacity: 1; }
 </style>
-<link href="<https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500&family=DM+Serif+Display&display=swap>" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
 </head>
 <body>
 <div class="container">
@@ -77,7 +77,7 @@
 </div>
 <div class="toast" id="toast"></div>
 <script>
-  const API = '<https://aiwritting-production-00ee.up.railway.app>';
+  const API = 'https://aiwritting-production-00ee.up.railway.app';
   function showToast(msg) {
     const t = document.getElementById('toast');
     t.textContent = msg; t.classList.add('show');
