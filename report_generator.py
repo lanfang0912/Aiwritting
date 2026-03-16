@@ -26,7 +26,7 @@ def generate_facebook_post(video: dict, transcript: str) -> str:
 
     with client.messages.stream(
         model="claude-haiku-4-5",
-        max_tokens=2048,
+        max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     ) as stream:
         final = stream.get_final_message()
