@@ -32,6 +32,32 @@ def check_env() -> None:
         raise RuntimeError("缺少環境變數：ANTHROPIC_API_KEY，請在 Railway Variables 填入。")
 
 
+def run_selected(videos: list) -> None:
+    check_env()
+    today = date.today().isoformat()
+    success_count = 0
+
+    for idx, video in enumerate(videos, start=1):
+        print(f"\n  ▍ 影片 {idx}/{len(videos)}：{video['title']}")
+        transcript, lang = fetch_transcript(video["id"])
+        if not transcript:
+            print("  [SKIP] 找不到可用的 CC 字幕，跳過此影片。")
+            continue
+        print(f"         字幕語言：{lang}")
+        try:
+            initial_draft = generate_facebook_post(video, transcript)
+            final_draft = run_pipeline(initial_draft, video)
+        except Exception as e:
+            print(f"  [ERROR] 處理失敗：{e}")
+            continue
+        draft_path = Path(f"draft_{today}_{idx:02d}.txt")
+        draft_path.write_text(final_draft, encoding="utf-8")
+        print(f"  ✓ 草稿已儲存：{draft_path.name}")
+        success_count += 1
+
+    print(f"\n完成！成功產出 {success_count}/{len(videos)} 篇草稿")
+
+
 def run() -> None:
     check_env()
 

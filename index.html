@@ -51,9 +51,16 @@
   <h1>AI 內容生產線</h1>
   <p class="subtitle">搜尋 YouTube 外文影片 → 抓字幕 → Claude 生成臉書貼文草稿（6 步驟管線）</p>
   <div class="btn-row">
-    <button class="btn-run" id="ai-run-btn" onclick="aiRun()">▶ 立即執行</button>
+    <button class="btn-run" id="ai-search-btn" onclick="aiSearch()">🔍 搜尋影片題目</button>
     <button class="btn-refresh" onclick="aiRefreshStatus()">↻ 更新狀態</button>
     <span id="status-badge">—</span>
+  </div>
+  <div class="drafts-wrap" id="candidates-wrap" style="display:none">
+    <div class="drafts-title">選擇要生成的影片（可多選）</div>
+    <div id="candidates-list"></div>
+    <div style="margin-top:14px">
+      <button class="btn-run" id="ai-run-btn" onclick="aiRun()" style="font-size:13px;padding:11px 22px">▶ 開始生成</button>
+    </div>
   </div>
   <div class="card" id="status-card">
     <div class="card-header">
@@ -84,19 +91,34 @@
     t.textContent = msg; t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2800);
   }
-  async function aiRun() {
-    const btn = document.getElementById('ai-run-btn');
-    btn.disabled = true; btn.textContent = '執行中…';
+  async function aiSearch() {
+    const btn = document.getElementById('ai-search-btn');
+    btn.disabled = true; btn.textContent = '搜尋中…';
     try {
-      const res = await fetch(API + '/run', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const res = await fetch(API + '/search', { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || res.status);
-      showToast('已開始執行，約需 2-5 分鐘');
-      setTimeout(aiRefreshStatus, 3000);
+      showToast('搜尋中，約需 30 秒');
+      aiPollStatus();
+    } catch (e) {
+      showToast('搜尋失敗：' + e.message);
+      btn.disabled = false; btn.textContent = '🔍 搜尋影片題目';
+    }
+  }
+  async function aiRun() {
+    const checked = [...document.querySelectorAll('.candidate-check:checked')].map(el => el.value);
+    if (checked.length === 0) { showToast('請至少選一部影片'); return; }
+    const btn = document.getElementById('ai-run-btn');
+    btn.disabled = true; btn.textContent = '生成中…';
+    try {
+      const res = await fetch(API + '/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ video_ids: checked }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.status);
+      showToast('已開始生成，請稍候');
       aiPollStatus();
     } catch (e) {
       showToast('執行失敗：' + e.message);
-      btn.disabled = false; btn.textContent = '▶ 立即執行';
+      btn.disabled = false; btn.textContent = '▶ 開始生成';
     }
   }
   let _pollTimer = null;
@@ -106,8 +128,11 @@
       const st = await aiRefreshStatus();
       if (st === 'done' || st === 'error') {
         clearInterval(_pollTimer);
-        const btn = document.getElementById('ai-run-btn');
-        btn.disabled = false; btn.textContent = '▶ 立即執行';
+        const runBtn = document.getElementById('ai-run-btn');
+        if (runBtn) { runBtn.disabled = false; runBtn.textContent = '▶ 開始生成'; }
+      }
+      if (st === 'searched') {
+        clearInterval(_pollTimer);
       }
     }, 5000);
   }
@@ -121,13 +146,31 @@
   function updateStatusUI(data) {
     document.getElementById('status-card').style.display = 'block';
     document.getElementById('status-msg').textContent = data.message || '—';
-    const colors = { idle: '#ccc', running: '#c4832a', done: '#6a9e6a', error: '#c0392b' };
-    const labels = { idle: '待機', running: '執行中', done: '完成', error: '錯誤' };
+    const colors = { idle: '#ccc', searching: '#c4832a', searched: '#4a90d9', running: '#c4832a', done: '#6a9e6a', error: '#c0392b' };
+    const labels = { idle: '待機', searching: '搜尋中', searched: '請選擇', running: '執行中', done: '完成', error: '錯誤' };
     document.getElementById('status-dot').style.background = colors[data.status] || '#ccc';
     document.getElementById('status-badge').textContent = labels[data.status] || data.status;
     document.getElementById('status-badge').style.color = colors[data.status] || '#ccc';
     const ts = data.finished_at || data.started_at;
     document.getElementById('status-time').textContent = ts ? '時間：' + ts.replace('T',' ').replace('Z','') : '';
+
+    // 顯示候選影片清單
+    if (data.status === 'searched' && data.candidates && data.candidates.length) {
+      document.getElementById('candidates-wrap').style.display = 'block';
+      document.getElementById('candidates-list').innerHTML = data.candidates.map(v =>
+        `<div class="draft-item">
+          <input type="checkbox" class="candidate-check" value="${v.id}" checked style="margin-right:8px">
+          <div style="flex:1">
+            <div class="draft-num" style="font-size:13px">${v.title}</div>
+            <div class="draft-name">${v.channel}　${(v.view_count||0).toLocaleString()} 次觀看</div>
+          </div>
+        </div>`
+      ).join('');
+      const searchBtn = document.getElementById('ai-search-btn');
+      searchBtn.disabled = false; searchBtn.textContent = '🔍 搜尋影片題目';
+    }
+
+    // 顯示完成草稿
     if (data.drafts && data.drafts.length) {
       document.getElementById('drafts-wrap').style.display = 'block';
       document.getElementById('drafts-list').innerHTML = data.drafts.map((f,i) =>
