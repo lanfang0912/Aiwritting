@@ -34,6 +34,7 @@
   .draft-num { font-size: 13px; }
   .draft-name { font-size: 11px; color: #888; flex: 1; }
   .btn-view { padding: 5px 12px; border: 1px solid #c4832a; color: #c4832a; background: transparent; font-size: 11px; }
+  .btn-gdocs { padding: 5px 12px; border: 1px solid #4a90d9; color: #4a90d9; background: transparent; font-size: 11px; }
   .preview-wrap { display: none; margin-top: 24px; }
   .preview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   .preview-title { font-size: 13px; font-weight: 600; }
@@ -130,7 +131,7 @@
     if (data.drafts && data.drafts.length) {
       document.getElementById('drafts-wrap').style.display = 'block';
       document.getElementById('drafts-list').innerHTML = data.drafts.map((f,i) =>
-        `<div class="draft-item"><div class="draft-num">草稿 ${i+1}</div><div class="draft-name">${f}</div><button class="btn-view" onclick="viewDraft('${f}')">檢視</button></div>`
+        `<div class="draft-item"><div class="draft-num">草稿 ${i+1}</div><div class="draft-name">${f}</div><button class="btn-view" onclick="viewDraft('${f}')">檢視</button><button class="btn-gdocs" onclick="saveDraft('${f}')">存到 Google 文件</button></div>`
       ).join('');
     }
   }
@@ -144,6 +145,16 @@
       document.getElementById('preview-wrap').style.display = 'block';
       document.getElementById('preview-wrap').scrollIntoView({ behavior: 'smooth' });
     } catch (e) { showToast('無法載入草稿：' + e.message); }
+  }
+  async function saveDraft(filename) {
+    showToast('儲存中…');
+    try {
+      const res = await fetch(API + '/save-gdocs/' + filename, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.status);
+      window.open(data.url, '_blank');
+      showToast('已開啟 Google 文件');
+    } catch (e) { showToast('儲存失敗：' + e.message); }
   }
   function copyDraft() {
     navigator.clipboard.writeText(document.getElementById('preview-content').textContent)
