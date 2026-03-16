@@ -11,17 +11,28 @@ import threading
 import time
 from datetime import date
 from pathlib import Path
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-...
-CORS(app)
-
+from flask import Flask, jsonify, request, make_response
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+
+@app.after_request
+def add_cors(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
+
+@app.before_request
+def handle_options():
+    if request.method == 'OPTIONS':
+        res = make_response('', 204)
+        res.headers['Access-Control-Allow-Origin'] = '*'
+        res.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        res.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        return res
 
 RUN_TOKEN = os.getenv("RUN_TOKEN", "")
 PORT = int(os.getenv("PORT", 8080))
@@ -38,6 +49,10 @@ _lock = threading.Lock()
 
 
 def _run_pipeline():
+    """在背景執行主程式。"""
+    import sys
+    from io import StringIO
+
     with _lock:
         _state["status"] = "running"
         _state["started_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -73,13 +88,15 @@ def _check_auth():
     return auth == f"Bearer {RUN_TOKEN}"
 
 
-@app.route("/run", methods=["POST"])
+@app.route("/run", methods=["POST", "OPTIONS"])
 def run_pipeline():
     if not _check_auth():
         return jsonify({"error": "Unauthorized"}), 401
+
     with _lock:
         if _state["status"] == "running":
             return jsonify({"error": "已在執行中，請稍後"}), 409
+
     t = threading.Thread(target=_run_pipeline, daemon=True)
     t.start()
     return jsonify({"ok": True, "message": "已開始執行"})
