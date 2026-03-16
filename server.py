@@ -108,6 +108,23 @@ def get_status():
         return jsonify(dict(_state))
 
 
+@app.route("/save-gdocs/<filename>", methods=["POST", "OPTIONS"])
+def save_gdocs(filename):
+    if not _check_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+    p = Path(filename)
+    if not p.exists() or not p.name.startswith("draft_"):
+        return jsonify({"error": "Not found"}), 404
+    try:
+        from gdocs import save_to_gdocs
+        content = p.read_text(encoding="utf-8")
+        title = p.stem  # e.g. draft_2026-03-16_01
+        url = save_to_gdocs(title, content)
+        return jsonify({"ok": True, "url": url})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/results/<filename>", methods=["GET"])
 def get_result(filename):
     if not _check_auth():
