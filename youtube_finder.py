@@ -74,8 +74,8 @@ def find_videos() -> list[dict]:
                 continue
             seen_ids.add(vid_id)
 
-            view_count = v.get("view_count") or 0
-            if view_count < MIN_VIEW_COUNT:
+            view_count = v.get("view_count")
+            if view_count is not None and view_count < MIN_VIEW_COUNT:
                 continue
             if not _is_recent(v):
                 continue
@@ -100,6 +100,6 @@ def _format_video(v: dict) -> dict:
         "title": v.get("title", ""),
         "channel": v.get("uploader") or v.get("channel", ""),
         "published_at": published_at,
-        "view_count": v.get("view_count") or 0,
+        "view_count": v.get("view_count"),
         "url": f"https://www.youtube.com/watch?v={vid_id}",
     }
