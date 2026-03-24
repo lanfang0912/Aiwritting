@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新朋友 C單</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+    background: #f0f4f8;
+    color: #2c2c2c;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+  }
+  .container { max-width: 600px; margin: 0 auto; }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 4px;
+    color: #1a1a2e;
+    letter-spacing: 2px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #4a90d9;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+    border-left: 3px solid #4a90d9;
+    padding-left: 8px;
+  }
+  .field { margin-bottom: 14px; }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 5px;
+  }
+  input[type="text"],
+  input[type="number"],
+  textarea,
+  select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #dde1e7;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fafafa;
+    color: #2c2c2c;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: #4a90d9;
+    background: #fff;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  .radio-group, .checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .radio-group label, .checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 400;
+    font-size: 14px;
+    cursor: pointer;
+    background: #f0f4f8;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid #dde1e7;
+    transition: all 0.15s;
+    margin-bottom: 0;
+  }
+  .radio-group input[type="radio"],
+  .checkbox-group input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+  }
+  .radio-group label:has(input:checked),
+  .checkbox-group label:has(input:checked) {
+    background: #e8f0fd;
+    border-color: #4a90d9;
+    color: #1a5fb4;
+    font-weight: 600;
+  }
+  .btn-copy {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    background: #25d366;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: background 0.2s, transform 0.1s;
+    margin-top: 8px;
+  }
+  .btn-copy:active { transform: scale(0.98); }
+  .btn-copy:hover { background: #1fb855; }
+  .btn-clear {
+    display: block;
+    width: 100%;
+    padding: 11px;
+    background: transparent;
+    color: #aaa;
+    border: 1px solid #dde1e7;
+    border-radius: 12px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  .btn-clear:hover { color: #e74c3c; border-color: #e74c3c; }
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #2c2c2c;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-size: 14px;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .preview-box {
+    background: #f8f8f8;
+    border: 1px dashed #ccc;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 13px;
+    line-height: 1.9;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #333;
+    margin-top: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    display: none;
+  }
+  .preview-toggle {
+    font-size: 12px;
+    color: #4a90d9;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 8px;
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>✨ 新朋友 C單</h1>
+  <p class="subtitle">填完後點下方按鈕，一鍵複製到 LINE</p>
+
+  <!-- 基本資料 -->
+  <div class="card">
+    <div class="section-title">基本資料</div>
+    <div class="field">
+      <label>姓名</label>
+      <input type="text" id="name" placeholder="請輸入姓名">
+    </div>
+    <div class="field">
+      <label>性別</label>
+      <div class="radio-group">
+        <label><input type="radio" name="gender" value="男"> 男</label>
+        <label><input type="radio" name="gender" value="女"> 女</label>
+      </div>
+    </div>
+    <div class="field">
+      <label>年齡</label>
+      <input type="text" id="age" placeholder="例：35">
+    </div>
+    <div class="field">
+      <label>家庭狀況</label>
+      <div class="checkbox-group" id="family-group">
+        <label><input type="checkbox" value="已婚"> 已婚</label>
+        <label><input type="checkbox" value="未婚"> 未婚</label>
+        <label><input type="checkbox" value="有小孩"> 有小孩</label>
+      </div>
+    </div>
+    <div class="field">
+      <label>決策者</label>
+      <div class="radio-group">
+        <label><input type="radio" name="decision" value="老公決定"> 老公決定</label>
+        <label><input type="radio" name="decision" value="老婆決定"> 老婆決定</label>
+        <label><input type="radio" name="decision" value="自己決定"> 自己決定</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 個人背景 -->
+  <div class="card">
+    <div class="section-title">個人背景</div>
+    <div class="field">
+      <label>個性</label>
+      <input type="text" id="personality" placeholder="例：外向、謹慎、好奇...">
+    </div>
+    <div class="field">
+      <label>職業背景</label>
+      <input type="text" id="job" placeholder="例：上班族、自營商、家管...">
+    </div>
+    <div class="field">
+      <label>收入</label>
+      <input type="text" id="income" placeholder="例：3萬/月、不固定...">
+    </div>
+  </div>
+
+  <!-- 需求分析 -->
+  <div class="card">
+    <div class="section-title">需求分析</div>
+    <div class="field">
+      <label>需求：健康？為什麼</label>
+      <textarea id="need-health" placeholder="有什麼健康困擾或目標..."></textarea>
+    </div>
+    <div class="field">
+      <label>需求：賺錢？為什麼</label>
+      <textarea id="need-money" placeholder="財務目標或原因..."></textarea>
+    </div>
+    <div class="field">
+      <label>用過產品後的想法</label>
+      <textarea id="product-feedback" placeholder="試用/使用後的反應..."></textarea>
+    </div>
+  </div>
+
+  <!-- 直銷背景 -->
+  <div class="card">
+    <div class="section-title">直銷 & 關係</div>
+    <div class="field">
+      <label>直銷經驗</label>
+      <div class="radio-group">
+        <label><input type="radio" name="mlm" value="無"> 無</label>
+        <label><input type="radio" name="mlm" value="有（正面）"> 有（正面）</label>
+        <label><input type="radio" name="mlm" value="有（負面）"> 有（負面）</label>
+        <label><input type="radio" name="mlm" value="有（中立）"> 有（中立）</label>
+      </div>
+    </div>
+    <div class="field">
+      <label>與我的關係</label>
+      <input type="text" id="relationship" placeholder="例：同學、同事、鄰居、朋友...">
+    </div>
+    <div class="field">
+      <label>我對他的影響力</label>
+      <div class="radio-group">
+        <label><input type="radio" name="influence" value="高"> 高</label>
+        <label><input type="radio" name="influence" value="中"> 中</label>
+        <label><input type="radio" name="influence" value="低"> 低</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 邀約情況 -->
+  <div class="card">
+    <div class="section-title">邀約 & 跟進</div>
+    <div class="field">
+      <label>如何邀約（來的目的）</label>
+      <textarea id="invite" placeholder="用什麼方式邀約、來的理由..."></textarea>
+    </div>
+    <div class="field">
+      <label>異議問題</label>
+      <textarea id="objection" placeholder="他提出哪些疑慮或反對..."></textarea>
+    </div>
+    <div class="field">
+      <label>有多少時間</label>
+      <input type="text" id="time" placeholder="例：每週10小時、假日有空...">
+    </div>
+  </div>
+
+  <!-- 補充 -->
+  <div class="card">
+    <div class="section-title">補充資訊</div>
+    <div class="field">
+      <label>其他補充</label>
+      <textarea id="notes" placeholder="其他觀察或重要備註..."></textarea>
+    </div>
+    <div class="field">
+      <label>需要上線協助的地方</label>
+      <textarea id="upline-help" placeholder="需要什麼支援..."></textarea>
+    </div>
+  </div>
+
+  <!-- 預覽 -->
+  <div class="preview-toggle" onclick="togglePreview()">👁 預覽訊息內容</div>
+  <div class="preview-box" id="preview"></div>
+
+  <br>
+  <button class="btn-copy" onclick="copyToClipboard()">📋 複製訊息到 LINE</button>
+  <button class="btn-clear" onclick="clearAll()">清除所有內容</button>
+</div>
+
+<div class="toast" id="toast">✅ 已複製！可以貼到 LINE 了</div>
+
+<script>
+  function getVal(id) {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : '';
+  }
+  function getRadio(name) {
+    const el = document.querySelector(`input[name="${name}"]:checked`);
+    return el ? el.value : '';
+  }
+  function getCheckboxes(groupId) {
+    const checks = document.querySelectorAll(`#${groupId} input[type="checkbox"]:checked`);
+    return Array.from(checks).map(c => c.value).join('、') || '';
+  }
+
+  function buildMessage() {
+    const family = getCheckboxes('family-group');
+    const decision = getRadio('decision');
+    const familyStr = [family, decision ? `（${decision}）` : ''].filter(Boolean).join(' ');
+
+    const lines = [
+      '✅新朋友 C單',
+      `姓名：${getVal('name')}`,
+      `性別：${getRadio('gender')}`,
+      `年齡：${getVal('age')}`,
+      `家庭狀況：${familyStr}`,
+      `個性：${getVal('personality')}`,
+      `職業背景：${getVal('job')}`,
+      `收入：${getVal('income')}`,
+      `需求（健康）：${getVal('need-health')}`,
+      `需求（賺錢）：${getVal('need-money')}`,
+      `用過產品後的想法：${getVal('product-feedback')}`,
+      `直銷經驗：${getRadio('mlm')}`,
+      `與我的關係：${getVal('relationship')}`,
+      `我對他的影響力：${getRadio('influence')}`,
+      `如何邀約：${getVal('invite')}`,
+      `異議問題：${getVal('objection')}`,
+      `其他補充：${getVal('notes')}`,
+      `需要上線協助的地方：${getVal('upline-help')}`,
+      `有多少時間：${getVal('time')}`,
+    ];
+    return lines.join('\n');
+  }
+
+  function togglePreview() {
+    const box = document.getElementById('preview');
+    if (box.style.display === 'block') {
+      box.style.display = 'none';
+    } else {
+      box.textContent = buildMessage();
+      box.style.display = 'block';
+    }
+  }
+
+  function copyToClipboard() {
+    const msg = buildMessage();
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(msg).then(showToast);
+    } else {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = msg;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast();
+    }
+  }
+
+  function showToast() {
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  function clearAll() {
+    if (!confirm('確定要清除所有內容嗎？')) return;
+    document.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(el => el.value = '');
+    document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(el => el.checked = false);
+    document.getElementById('preview').style.display = 'none';
+  }
+</script>
+</body>
+</html>
